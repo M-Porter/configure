@@ -5,8 +5,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var instance *interface{}
-
 type Options struct {
 	ConfigName    string
 	ConfigType    string
@@ -15,7 +13,7 @@ type Options struct {
 	Defaults      interface{}
 }
 
-func Setup(options Options, conf interface{}) error {
+func Setup(options Options, conf any) error {
 	viper.SetConfigName(options.ConfigName)
 	viper.SetConfigType(options.ConfigType)
 	viper.AddConfigPath(options.ConfigAbsPath)
@@ -46,14 +44,5 @@ func Setup(options Options, conf interface{}) error {
 		return err
 	}
 
-	instance = &conf
-
 	return nil
-}
-
-func Config() interface{} {
-	if instance == nil {
-		return nil
-	}
-	return *instance
 }
