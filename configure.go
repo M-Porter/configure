@@ -1,29 +1,78 @@
 package configure
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 )
 
-type Options struct {
-	ConfigName    string
-	ConfigType    string
-	ConfigAbsPath string
-	EnvPrefix     string
-	Defaults      interface{}
+type setupOptions struct {
+	configName      string
+	configType      string
+	configAbsPath   string
+	envPrefix       string
+	defaults        interface{}
+	saveIfNotExists bool
 }
 
-func Setup(options Options, conf any) error {
-	viper.SetConfigName(options.ConfigName)
-	viper.SetConfigType(options.ConfigType)
-	viper.AddConfigPath(options.ConfigAbsPath)
+type SetupOption func(o *setupOptions)
 
-	viper.SetEnvPrefix(options.EnvPrefix)
+func WithConfigName(name string) SetupOption {
+	return func(o *setupOptions) {
+		o.configName = name
+	}
+}
+
+func WithConfigDir(dir string) SetupOption {
+	return func(o *setupOptions) {
+		o.configAbsPath = dir
+	}
+}
+
+func WithConfigType(name string) SetupOption {
+	return func(o *setupOptions) {
+		o.configType = name
+	}
+}
+
+func WithEnvPrefix(prefix string) SetupOption {
+	return func(o *setupOptions) {
+		o.envPrefix = strings.ToUpper(prefix)
+	}
+}
+
+func WithWriteIfNotExists() SetupOption {
+	return func(o *setupOptions) {
+		o.saveIfNotExists = true
+	}
+}
+
+func WithDefaultConfig(defaults any) SetupOption {
+	return func(o *setupOptions) {
+		o.defaults = defaults
+	}
+}
+
+func Get(conf any, options ...SetupOption) error {
+	opts := setupOptions{
+		saveIfNotExists: false,
+	}
+	for _, option := range options {
+		option(&opts)
+	}
+
+	viper.SetConfigName(opts.configName)
+	viper.SetConfigType(opts.configType)
+	viper.AddConfigPath(opts.configAbsPath)
+
+	viper.SetEnvPrefix(opts.envPrefix)
 	viper.AutomaticEnv()
 
-	if options.Defaults != nil {
+	if opts.defaults != nil {
 		var defaults map[string]interface{}
-		if err := mapstructure.Decode(options.Defaults, &defaults); err != nil {
+		if err := mapstructure.Decode(opts.defaults, &defaults); err != nil {
 			return err
 		}
 		for k, v := range defaults {
@@ -31,17 +80,26 @@ func Setup(options Options, conf any) error {
 		}
 	}
 
-	if err := viper.ReadInConfig(); err != nil {
-		fileNotFoundErr, ok := err.(viper.ConfigFileNotFoundError)
-		if ok {
-			if err.Error() != fileNotFoundErr.Error() {
-				return err
-			}
+	if opts.saveIfNotExists {
+		saveErr := viper.SafeWriteConfig()
+		var configFileAlreadyExistsError viper.ConfigFileAlreadyExistsError
+		if errors.As(saveErr, &configFileAlreadyExistsError) {
+			// bc the option is "save if not exists", we can ignore this error
+		} else {
+			return saveErr
 		}
 	}
 
-	if err := viper.Unmarshal(&conf); err != nil {
-		return err
+	readError := viper.ReadInConfig()
+	var fileNotFoundErr viper.ConfigFileNotFoundError
+	if readError != nil && errors.As(readError, &fileNotFoundErr) && readError.Error() != fileNotFoundErr.Error() {
+		// return the error if the error is not a ConfigFileNotFoundError
+		return readError
+	}
+
+	unmarshalErr := viper.Unmarshal(&conf)
+	if unmarshalErr != nil {
+		return unmarshalErr
 	}
 
 	return nil
