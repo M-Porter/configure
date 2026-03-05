@@ -14,15 +14,15 @@ func TestDefaults(t *testing.T) {
 
 	expected := "my.test.host"
 
-	options := configure.Options{
-		Defaults: Config{
-			HostName: expected,
-		},
-	}
-
 	conf := &Config{}
 
-	if err := configure.Setup(options, conf); err != nil {
+	err := configure.Get(
+		conf,
+		configure.WithDefaultConfig(Config{
+			HostName: expected,
+		}),
+	)
+	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
@@ -31,26 +31,25 @@ func TestDefaults(t *testing.T) {
 	}
 }
 
-func TestFromEnv(t *testing.T) {
+func TestFromEnvUsingDefaultPrefix(t *testing.T) {
 	type Config struct {
 		Secret string `mapstructure:"app_secret"`
 	}
 
 	key := "APP_SECRET"
-	_ = os.Unsetenv(key)
 	expected := "987xyz"
-	_ = os.Setenv(key, expected)
-
-	options := configure.Options{
-		EnvPrefix: "",
-		Defaults: Config{
-			Secret: "abc123",
-		},
-	}
+	defer setEnvValue(t, key, expected)()
 
 	conf := &Config{}
 
-	if err := configure.Setup(options, conf); err != nil {
+	err := configure.Get(
+		conf,
+		configure.WithDefaultConfig(Config{
+			Secret: "abc123",
+		}),
+	)
+
+	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
@@ -61,34 +60,32 @@ func TestFromEnv(t *testing.T) {
 	_ = os.Unsetenv(key)
 }
 
-func TestFromEnvWithNoEnvPrefix(t *testing.T) {
+func TestFromEnvWithPrefix(t *testing.T) {
 	type Config struct {
-		AnotherSecret string `mapstructure:"another_secret"`
+		Secret string `mapstructure:"secret"`
 	}
 
-	key := "APP_ANOTHER_SECRET"
-	_ = os.Unsetenv(key)
+	key := "FOO_SECRET"
 	expected := "987xyz"
-	_ = os.Setenv(key, expected)
-
-	options := configure.Options{
-		EnvPrefix: "APP",
-		Defaults: Config{
-			AnotherSecret: "abc123",
-		},
-	}
+	defer setEnvValue(t, key, expected)()
 
 	conf := &Config{}
 
-	if err := configure.Setup(options, conf); err != nil {
+	err := configure.Get(
+		conf,
+		configure.WithDefaultConfig(Config{
+			Secret: "abc123",
+		}),
+		configure.WithEnvPrefix("foo"),
+	)
+
+	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
-	if conf.AnotherSecret != expected {
-		t.Errorf("expected %s, got %s", expected, conf.AnotherSecret)
+	if conf.Secret != expected {
+		t.Errorf("expected %s, got %s", expected, conf.Secret)
 	}
-
-	_ = os.Unsetenv(key)
 }
 
 func TestFromFile(t *testing.T) {
@@ -101,20 +98,68 @@ func TestFromFile(t *testing.T) {
 		t.Fatalf("Unable to get working dir: %v", err)
 	}
 
-	options := configure.Options{
-		ConfigName:    "test_config",
-		ConfigType:    "yaml",
-		ConfigAbsPath: dir,
-	}
-
 	conf := &Config{}
 
-	if err := configure.Setup(options, conf); err != nil {
+	err = configure.Get(
+		conf,
+		configure.WithConfigName("test_config"),
+		configure.WithConfigType("yaml"),
+		configure.WithConfigDir(dir),
+	)
+
+	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
 	expected := "foo foo foo"
 	if conf.SomeValue != expected {
 		t.Errorf("expected %s, got %s", expected, conf.SomeValue)
+	}
+}
+
+func TestFromFileUsingConfigNameOnly(t *testing.T) {
+	type Config struct {
+		SomeValue string `mapstructure:"some_value"`
+	}
+
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Unable to get working dir: %v", err)
+	}
+
+	conf := &Config{}
+
+	err = configure.Get(
+		conf,
+		configure.WithConfigName("test_config.yaml"),
+		configure.WithConfigDir(dir),
+	)
+
+	if err != nil {
+		t.Fatalf("error setting up config: %v", err)
+	}
+
+	expected := "foo foo foo"
+	if conf.SomeValue != expected {
+		t.Errorf("expected %s, got %s", expected, conf.SomeValue)
+	}
+}
+
+func setEnvValue(t *testing.T, key, value string) func() {
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatalf("error unsetting env var for testing: %v", err)
+	}
+	if err := os.Setenv(key, value); err != nil {
+		t.Fatalf("error unsetting env var for testing: %v", err)
+	}
+	actual := os.Getenv(key)
+	if os.Getenv(key) != value {
+		t.Fatalf("error unsetting env var for testing: expected %s, got %s", value, actual)
+	}
+
+	return func() {
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatalf("error unsetting env var for testing: %v", err)
+		}
 	}
 }
