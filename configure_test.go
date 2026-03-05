@@ -31,15 +31,14 @@ func TestDefaults(t *testing.T) {
 	}
 }
 
-func TestFromEnv(t *testing.T) {
+func TestFromEnvUsingDefaultPrefix(t *testing.T) {
 	type Config struct {
 		Secret string `mapstructure:"app_secret"`
 	}
 
 	key := "APP_SECRET"
-	_ = os.Unsetenv(key)
 	expected := "987xyz"
-	_ = os.Setenv(key, expected)
+	defer setEnvValue(t, key, expected)()
 
 	conf := &Config{}
 
@@ -48,7 +47,6 @@ func TestFromEnv(t *testing.T) {
 		configure.WithDefaultConfig(Config{
 			Secret: "abc123",
 		}),
-		configure.WithEnvPrefix(""),
 	)
 
 	if err != nil {
@@ -64,13 +62,12 @@ func TestFromEnv(t *testing.T) {
 
 func TestFromEnvWithPrefix(t *testing.T) {
 	type Config struct {
-		Secret string `mapstructure:"foo_secret"`
+		Secret string `mapstructure:"secret"`
 	}
 
 	key := "FOO_SECRET"
-	_ = os.Unsetenv(key)
 	expected := "987xyz"
-	_ = os.Setenv(key, expected)
+	defer setEnvValue(t, key, expected)()
 
 	conf := &Config{}
 
@@ -89,39 +86,6 @@ func TestFromEnvWithPrefix(t *testing.T) {
 	if conf.Secret != expected {
 		t.Errorf("expected %s, got %s", expected, conf.Secret)
 	}
-
-	_ = os.Unsetenv(key)
-}
-
-func TestFromEnvWithNoEnvPrefix(t *testing.T) {
-	type Config struct {
-		AnotherSecret string `mapstructure:"another_secret"`
-	}
-
-	key := "APP_ANOTHER_SECRET"
-	_ = os.Unsetenv(key)
-	expected := "987xyz"
-	_ = os.Setenv(key, expected)
-
-	conf := &Config{}
-
-	err := configure.Get(
-		conf,
-		configure.WithDefaultConfig(Config{
-			AnotherSecret: "abc123",
-		}),
-		configure.WithEnvPrefix("APP"),
-	)
-
-	if err != nil {
-		t.Fatalf("error setting up config: %v", err)
-	}
-
-	if conf.AnotherSecret != expected {
-		t.Errorf("expected %s, got %s", expected, conf.AnotherSecret)
-	}
-
-	_ = os.Unsetenv(key)
 }
 
 func TestFromFile(t *testing.T) {
@@ -178,5 +142,24 @@ func TestFromFileUsingConfigNameOnly(t *testing.T) {
 	expected := "foo foo foo"
 	if conf.SomeValue != expected {
 		t.Errorf("expected %s, got %s", expected, conf.SomeValue)
+	}
+}
+
+func setEnvValue(t *testing.T, key, value string) func() {
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatalf("error unsetting env var for testing: %v", err)
+	}
+	if err := os.Setenv(key, value); err != nil {
+		t.Fatalf("error unsetting env var for testing: %v", err)
+	}
+	actual := os.Getenv(key)
+	if os.Getenv(key) != value {
+		t.Fatalf("error unsetting env var for testing: expected %s, got %s", value, actual)
+	}
+
+	return func() {
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatalf("error unsetting env var for testing: %v", err)
+		}
 	}
 }

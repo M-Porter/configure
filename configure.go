@@ -2,6 +2,7 @@ package configure
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -63,12 +64,24 @@ func Get(conf any, options ...SetupOption) error {
 		option(&opts)
 	}
 
-	viper.SetConfigName(opts.configName)
-	viper.SetConfigType(opts.configType)
-	viper.AddConfigPath(opts.configAbsPath)
+	vpr := viper.New()
 
-	viper.SetEnvPrefix(opts.envPrefix)
-	viper.AutomaticEnv()
+	vpr.SetConfigName(opts.configName)
+
+	// If config type is not set, attempt to assume it from the configName
+	if opts.configType == "" {
+		ext := filepath.Ext(opts.configName)
+		if len(ext) > 1 {
+			vpr.SetConfigType(ext[1:])
+		}
+	} else {
+		vpr.SetConfigType(opts.configType)
+	}
+
+	vpr.AddConfigPath(opts.configAbsPath)
+
+	vpr.SetEnvPrefix(opts.envPrefix)
+	vpr.AutomaticEnv()
 
 	if opts.defaults != nil {
 		var defaults map[string]interface{}
@@ -76,12 +89,12 @@ func Get(conf any, options ...SetupOption) error {
 			return err
 		}
 		for k, v := range defaults {
-			viper.SetDefault(k, v)
+			vpr.SetDefault(k, v)
 		}
 	}
 
 	if opts.saveIfNotExists {
-		saveErr := viper.SafeWriteConfig()
+		saveErr := vpr.SafeWriteConfig()
 		var configFileAlreadyExistsError viper.ConfigFileAlreadyExistsError
 		if errors.As(saveErr, &configFileAlreadyExistsError) {
 			// bc the option is "save if not exists", we can ignore this error
@@ -90,14 +103,14 @@ func Get(conf any, options ...SetupOption) error {
 		}
 	}
 
-	readError := viper.ReadInConfig()
+	readError := vpr.ReadInConfig()
 	var fileNotFoundErr viper.ConfigFileNotFoundError
 	if readError != nil && errors.As(readError, &fileNotFoundErr) && readError.Error() != fileNotFoundErr.Error() {
 		// return the error if the error is not a ConfigFileNotFoundError
 		return readError
 	}
 
-	unmarshalErr := viper.Unmarshal(&conf)
+	unmarshalErr := vpr.Unmarshal(&conf)
 	if unmarshalErr != nil {
 		return unmarshalErr
 	}
