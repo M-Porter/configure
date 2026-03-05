@@ -10,12 +10,14 @@ import (
 )
 
 type setupOptions struct {
-	configName      string
-	configType      string
-	configAbsPath   string
-	envPrefix       string
-	defaults        interface{}
-	saveIfNotExists bool
+	configName    string
+	configType    string
+	configAbsPath string
+	envPrefix     string
+	// Default values to apply
+	defaults interface{}
+	// If no config exists at the given config file path, should one be written.
+	writeIfNotExists bool
 }
 
 type SetupOption func(o *setupOptions)
@@ -46,7 +48,7 @@ func WithEnvPrefix(prefix string) SetupOption {
 
 func WithWriteIfNotExists() SetupOption {
 	return func(o *setupOptions) {
-		o.saveIfNotExists = true
+		o.writeIfNotExists = true
 	}
 }
 
@@ -56,9 +58,9 @@ func WithDefaultConfig(defaults any) SetupOption {
 	}
 }
 
-func Get(conf any, options ...SetupOption) error {
+func Setup(conf any, options ...SetupOption) error {
 	opts := setupOptions{
-		saveIfNotExists: false,
+		writeIfNotExists: false,
 	}
 	for _, option := range options {
 		option(&opts)
@@ -93,7 +95,7 @@ func Get(conf any, options ...SetupOption) error {
 		}
 	}
 
-	if opts.saveIfNotExists {
+	if opts.writeIfNotExists {
 		saveErr := vpr.SafeWriteConfig()
 		var configFileAlreadyExistsError viper.ConfigFileAlreadyExistsError
 		if errors.As(saveErr, &configFileAlreadyExistsError) {

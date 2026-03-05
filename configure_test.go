@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/m-porter/configure/v2"
+	"github.com/m-porter/configure/v3"
 )
 
 func TestDefaults(t *testing.T) {
@@ -16,7 +16,7 @@ func TestDefaults(t *testing.T) {
 
 	conf := &Config{}
 
-	err := configure.Get(
+	err := configure.Setup(
 		conf,
 		configure.WithDefaultConfig(Config{
 			HostName: expected,
@@ -42,7 +42,7 @@ func TestFromEnvUsingDefaultPrefix(t *testing.T) {
 
 	conf := &Config{}
 
-	err := configure.Get(
+	err := configure.Setup(
 		conf,
 		configure.WithDefaultConfig(Config{
 			Secret: "abc123",
@@ -71,7 +71,7 @@ func TestFromEnvWithPrefix(t *testing.T) {
 
 	conf := &Config{}
 
-	err := configure.Get(
+	err := configure.Setup(
 		conf,
 		configure.WithDefaultConfig(Config{
 			Secret: "abc123",
@@ -100,7 +100,7 @@ func TestFromFile(t *testing.T) {
 
 	conf := &Config{}
 
-	err = configure.Get(
+	err = configure.Setup(
 		conf,
 		configure.WithConfigName("test_config"),
 		configure.WithConfigType("yaml"),
@@ -129,7 +129,7 @@ func TestFromFileUsingConfigNameOnly(t *testing.T) {
 
 	conf := &Config{}
 
-	err = configure.Get(
+	err = configure.Setup(
 		conf,
 		configure.WithConfigName("test_config.yaml"),
 		configure.WithConfigDir(dir),
