@@ -18,20 +18,27 @@ from a file, environment variables, or defaults.
 
 ```go
 type AppConfig struct {
-    Host     string `mapstructure:"host"`
-    Port     int    `mapstructure:"port"`
-    Password string `mapstructure:"password"`
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Password string `mapstructure:"password"`
 }
 
 cfg := &AppConfig{}
 
 conf := configure.New()
-conf.SetConfigName("config")   // file name without extension
-conf.SetConfigType("yaml")     // e.g. "yaml", "toml", "json"
-conf.SetConfigDir("/etc/myapp")
+
+if err := conf.SetConfigName("config"); err != nil { // file name without extension
+	log.Fatal(err)
+}
+if err := conf.SetConfigType("yaml"); err != nil { // e.g. "yaml", "toml", "json"
+	log.Fatal(err)
+}
+if err := conf.SetConfigDir("/etc/myapp"); err != nil {
+	log.Fatal(err)
+}
 
 if err := conf.Get(cfg); err != nil {
-    log.Fatal(err)
+	log.Fatal(err)
 }
 ```
 
@@ -45,13 +52,16 @@ file or environment variables are read, so they can always be overridden.
 
 ```go
 conf := configure.New()
-conf.SetDefaults(AppConfig{
-    Host: "localhost",
-    Port: 5432,
-})
+
+if err := conf.SetDefaults(AppConfig{
+	Host: "localhost",
+	Port: 5432,
+}); err != nil {
+	log.Fatal(err)
+}
 
 if err := conf.Get(cfg); err != nil {
-    log.Fatal(err)
+	log.Fatal(err)
 }
 ```
 
@@ -65,10 +75,13 @@ programs:
 
 ```go
 conf := configure.New()
-conf.SetEnvPrefix("myapp") // HOST becomes MYAPP_HOST, PORT becomes MYAPP_PORT
+
+if err := conf.SetEnvPrefix("myapp"); err != nil { // HOST becomes MYAPP_HOST, PORT becomes MYAPP_PORT
+	log.Fatal(err)
+}
 
 if err := conf.Get(cfg); err != nil {
-    log.Fatal(err)
+	log.Fatal(err)
 }
 ```
 
@@ -80,17 +93,28 @@ values.
 
 ```go
 conf := configure.New()
-conf.SetConfigName("config")
-conf.SetConfigType("yaml")
-conf.SetConfigDir("/etc/myapp")
-conf.SetDefaults(AppConfig{
-    Host: "localhost",
-    Port: 5432,
-})
-conf.SetWriteIfNotExists(true)
+
+if err := conf.SetConfigName("config"); err != nil {
+	log.Fatal(err)
+}
+if err := conf.SetConfigType("yaml"); err != nil {
+	log.Fatal(err)
+}
+if err := conf.SetConfigDir("/etc/myapp"); err != nil {
+	log.Fatal(err)
+}
+if err := conf.SetDefaults(AppConfig{
+	Host: "localhost",
+	Port: 5432,
+}); err != nil {
+	log.Fatal(err)
+}
+if err := conf.SetWriteIfNotExists(true); err != nil {
+	log.Fatal(err)
+}
 
 if err := conf.Get(cfg); err != nil {
-    log.Fatal(err)
+	log.Fatal(err)
 }
 ```
 
@@ -103,12 +127,33 @@ cfg.Host = "db.prod.example.com"
 cfg.Port = 5433
 
 if err := conf.Save(cfg); err != nil {
-    log.Fatal(err)
+	log.Fatal(err)
 }
 ```
 
-Note: `Configure` is frozen after the first call to `Get` or `Save`. Calling any
-setter after that point will return a `ConfigurationFrozenError`.
+## Frozen configuration
+
+All setter methods (`SetConfigName`, `SetConfigType`, `SetConfigDir`, `SetEnvPrefix`,
+`SetDefaults`, `SetWriteIfNotExists`) return an `error`. Once `Get` or `Save` has
+been called, the `Configure` instance is considered frozen and any further setter
+calls will return a `ConfigurationFrozenError`.
+
+This is intentional: it prevents mutations that would have no effect on an already
+initialized configuration, making unexpected behavior explicit rather than silent.
+
+```go
+conf := configure.New()
+conf.SetConfigName("config")
+
+if err := conf.Get(cfg); err != nil {
+	log.Fatal(err)
+}
+
+// This will return a ConfigurationFrozenError — conf is already initialized.
+if err := conf.SetConfigDir("/etc/myapp"); err != nil {
+	log.Fatal(err)
+}
+```
 
 # Further examples
 
