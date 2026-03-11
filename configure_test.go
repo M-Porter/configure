@@ -17,7 +17,7 @@ func TestDefaults(t *testing.T) {
 	testingConfig := &TestingConfig{}
 
 	conf := configure.New()
-	conf.Defaults = TestingConfig{HostName: expected}
+	conf.SetDefaults(TestingConfig{HostName: expected})
 
 	err := conf.Get(testingConfig)
 	if err != nil {
@@ -41,7 +41,7 @@ func TestFromEnvUsingDefaultPrefix(t *testing.T) {
 	testingConfig := &TestingConfig{}
 
 	conf := configure.New()
-	conf.Defaults = TestingConfig{Secret: "abc123"}
+	conf.SetDefaults(TestingConfig{Secret: "abc123"})
 
 	err := conf.Get(testingConfig)
 
@@ -68,8 +68,8 @@ func TestFromEnvWithPrefix(t *testing.T) {
 	testingConfig := &TestingConfig{}
 
 	conf := configure.New()
-	conf.Defaults = TestingConfig{Secret: "abc123"}
-	conf.EnvPrefix = "foo"
+	conf.SetDefaults(TestingConfig{Secret: "abc123"})
+	conf.SetEnvPrefix("foo")
 
 	err := conf.Get(testingConfig)
 
@@ -95,9 +95,9 @@ func TestFromFile(t *testing.T) {
 	testingConfig := &TestingConfig{}
 
 	conf := configure.New()
-	conf.ConfigName = "test_config"
-	conf.ConfigType = "yaml"
-	conf.ConfigDir = dir
+	conf.SetConfigName("test_config")
+	conf.SetConfigType("yaml")
+	conf.SetConfigDir(dir)
 
 	err = conf.Get(testingConfig)
 
@@ -124,8 +124,8 @@ func TestFromFileUsingConfigNameOnly(t *testing.T) {
 	testingConfig := &TestingConfig{}
 
 	conf := configure.New()
-	conf.ConfigName = "test_config.yaml"
-	conf.ConfigDir = dir
+	conf.SetConfigName("test_config.yaml")
+	conf.SetConfigDir(dir)
 
 	err = conf.Get(testingConfig)
 

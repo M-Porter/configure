@@ -10,48 +10,73 @@ import (
 
 type Configure struct {
 	// The config file name.
-	ConfigName string
-	// The config type. If not supplied, it will be assumed from the ConfigName extension.
-	ConfigType string
+	configName string
+	// The config type. If not supplied, it will be assumed from the configName extension.
+	configType string
 	// The absolute path to the directory the config is stored in.
-	ConfigDir string
+	configDir string
 	// Defines a prefix that env variables will use.
-	EnvPrefix string
+	envPrefix string
 	// Default values to apply
-	Defaults interface{}
+	defaults interface{}
 	// If no config exists at the given config file path, should one be written.
-	WriteIfNotExists bool
+	writeIfNotExists bool
 }
 
+func (c *Configure) SetConfigName(configName string) {
+	c.configName = configName
+}
+
+func (c *Configure) SetConfigType(ConfigType string) {
+	c.configType = ConfigType
+}
+
+func (c *Configure) SetConfigDir(ConfigDir string) {
+	c.configDir = ConfigDir
+}
+
+func (c *Configure) SetEnvPrefix(EnvPrefix string) {
+	c.envPrefix = EnvPrefix
+}
+
+func (c *Configure) SetDefaults(defaults any) {
+	c.defaults = defaults
+}
+
+func (c *Configure) SetWriteIfNotExists(WriteIfNotExists bool) {
+	c.writeIfNotExists = WriteIfNotExists
+}
+
+// New returns a new instance of Configure with defaults set.
 func New() Configure {
 	return Configure{
-		WriteIfNotExists: false,
+		writeIfNotExists: false,
 	}
 }
 
-func (configure *Configure) Get(conf any) error {
+func (c *Configure) Get(dest any) error {
 	vpr := viper.New()
 
-	vpr.SetConfigName(configure.ConfigName)
+	vpr.SetConfigName(c.configName)
 
-	// If config type is not set, attempt to assume it from the ConfigName
-	if configure.ConfigType == "" {
-		ext := filepath.Ext(configure.ConfigName)
+	// If config type is not set, attempt to assume it from the configName
+	if c.configType == "" {
+		ext := filepath.Ext(c.configName)
 		if len(ext) > 1 {
 			vpr.SetConfigType(ext[1:])
 		}
 	} else {
-		vpr.SetConfigType(configure.ConfigType)
+		vpr.SetConfigType(c.configType)
 	}
 
-	vpr.AddConfigPath(configure.ConfigDir)
+	vpr.AddConfigPath(c.configDir)
 
-	vpr.SetEnvPrefix(configure.EnvPrefix)
+	vpr.SetEnvPrefix(c.envPrefix)
 	vpr.AutomaticEnv()
 
-	if configure.Defaults != nil {
+	if c.defaults != nil {
 		var defaults map[string]interface{}
-		if err := mapstructure.Decode(configure.Defaults, &defaults); err != nil {
+		if err := mapstructure.Decode(c.defaults, &defaults); err != nil {
 			return err
 		}
 		for k, v := range defaults {
@@ -59,7 +84,7 @@ func (configure *Configure) Get(conf any) error {
 		}
 	}
 
-	if configure.WriteIfNotExists {
+	if c.writeIfNotExists {
 		saveErr := vpr.SafeWriteConfig()
 		if _, ok := errors.AsType[viper.ConfigFileAlreadyExistsError](saveErr); ok {
 			// bc the option is "save if not exists", we can ignore this error
@@ -75,7 +100,7 @@ func (configure *Configure) Get(conf any) error {
 		return readError
 	}
 
-	unmarshalErr := vpr.Unmarshal(&conf)
+	unmarshalErr := vpr.Unmarshal(&dest)
 	if unmarshalErr != nil {
 		return unmarshalErr
 	}
