@@ -218,8 +218,7 @@ func TestFrozen(t *testing.T) {
 			t.Errorf("%s: expected ConfigurationFrozenError, got nil", s.name)
 			continue
 		}
-		var frozenErr *configure.ConfigurationFrozenError
-		if !errors.As(err, &frozenErr) {
+		if _, ok := errors.AsType[*configure.ConfigurationFrozenError](err); !ok {
 			t.Errorf("%s: expected ConfigurationFrozenError, got %T: %v", s.name, err, err)
 		}
 	}
