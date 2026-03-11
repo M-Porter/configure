@@ -82,8 +82,8 @@ func (c *Configure) checkFrozen(cb func()) error {
 }
 
 // New returns a new instance of Configure with defaults set.
-func New() Configure {
-	return Configure{
+func New() *Configure {
+	return &Configure{
 		writeIfNotExists: false,
 	}
 }
