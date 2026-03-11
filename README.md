@@ -5,7 +5,7 @@ Dead simple configuration library.
 # Install
 
 ```
-go get -u github.com/m-porter/configure/v2
+go get -u github.com/m-porter/configure/v3
 ```
 
 # Usage
