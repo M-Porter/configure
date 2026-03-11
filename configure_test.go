@@ -1,7 +1,10 @@
 package configure_test
 
 import (
+	"fmt"
+	"math/rand"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/m-porter/configure/v3"
@@ -111,31 +114,31 @@ func TestFromFile(t *testing.T) {
 	}
 }
 
-func TestFromFileUsingConfigNameOnly(t *testing.T) {
+func TestWriteIfNotExists(t *testing.T) {
 	type TestingConfig struct {
 		SomeValue string `mapstructure:"some_value"`
 	}
 
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Unable to get working dir: %v", err)
-	}
-
 	testingConfig := &TestingConfig{}
 
+	tempDir := os.TempDir()
+	tempFile := fmt.Sprintf("configure_tests_%08x", rand.Uint32())
+	fullTempFilePath := path.Join(tempDir, tempFile+".yaml")
+	defer os.Remove(fullTempFilePath)
+
 	conf := configure.New()
-	conf.SetConfigName("test_config.yaml")
-	conf.SetConfigDir(dir)
+	conf.SetConfigName(tempFile)
+	conf.SetConfigType("yaml")
+	conf.SetConfigDir(tempDir)
+	conf.SetDefaults(TestingConfig{SomeValue: "abc123"})
+	conf.SetWriteIfNotExists(true)
 
-	err = conf.Get(testingConfig)
-
-	if err != nil {
+	if err := conf.Get(testingConfig); err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
-	expected := "foo foo foo"
-	if testingConfig.SomeValue != expected {
-		t.Errorf("expected %s, got %s", expected, testingConfig.SomeValue)
+	if _, err := os.Stat(fullTempFilePath); os.IsNotExist(err) {
+		t.Errorf("file %s not created", fullTempFilePath)
 	}
 }
 

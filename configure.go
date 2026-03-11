@@ -2,14 +2,13 @@ package configure
 
 import (
 	"errors"
-	"path/filepath"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 )
 
 type Configure struct {
-	// The config file name.
+	// The config file name. Does not include extension.
 	configName string
 	// The config type. If not supplied, it will be assumed from the configName extension.
 	configType string
@@ -20,6 +19,7 @@ type Configure struct {
 	// Default values to apply
 	defaults interface{}
 	// If no config exists at the given config file path, should one be written.
+	// The combination of configName + configType will be used to determine the written file name.
 	writeIfNotExists bool
 }
 
@@ -58,19 +58,8 @@ func (c *Configure) Get(dest any) error {
 	vpr := viper.New()
 
 	vpr.SetConfigName(c.configName)
-
-	// If config type is not set, attempt to assume it from the configName
-	if c.configType == "" {
-		ext := filepath.Ext(c.configName)
-		if len(ext) > 1 {
-			vpr.SetConfigType(ext[1:])
-		}
-	} else {
-		vpr.SetConfigType(c.configType)
-	}
-
+	vpr.SetConfigType(c.configType)
 	vpr.AddConfigPath(c.configDir)
-
 	vpr.SetEnvPrefix(c.envPrefix)
 	vpr.AutomaticEnv()
 
