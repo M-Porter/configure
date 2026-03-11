@@ -18,9 +18,9 @@ from a file, environment variables, or defaults.
 
 ```go
 type AppConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	Password string `mapstructure:"password"`
+    Host     string `mapstructure:"host"`
+    Port     int    `mapstructure:"port"`
+    Password string `mapstructure:"password"`
 }
 
 cfg := &AppConfig{}
@@ -31,7 +31,7 @@ conf.SetConfigType("yaml")     // e.g. "yaml", "toml", "json"
 conf.SetConfigDir("/etc/myapp")
 
 if err := conf.Get(cfg); err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 ```
 
@@ -46,12 +46,12 @@ file or environment variables are read, so they can always be overridden.
 ```go
 conf := configure.New()
 conf.SetDefaults(AppConfig{
-	Host: "localhost",
-	Port: 5432,
+    Host: "localhost",
+    Port: 5432,
 })
 
 if err := conf.Get(cfg); err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 ```
 
@@ -68,7 +68,7 @@ conf := configure.New()
 conf.SetEnvPrefix("myapp") // HOST becomes MYAPP_HOST, PORT becomes MYAPP_PORT
 
 if err := conf.Get(cfg); err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 ```
 
@@ -84,13 +84,13 @@ conf.SetConfigName("config")
 conf.SetConfigType("yaml")
 conf.SetConfigDir("/etc/myapp")
 conf.SetDefaults(AppConfig{
-	Host: "localhost",
-	Port: 5432,
+    Host: "localhost",
+    Port: 5432,
 })
 conf.SetWriteIfNotExists(true)
 
 if err := conf.Get(cfg); err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 ```
 
@@ -103,7 +103,7 @@ cfg.Host = "db.prod.example.com"
 cfg.Port = 5433
 
 if err := conf.Save(cfg); err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 ```
 
@@ -122,12 +122,12 @@ conf := configure.New()
 conf.SetConfigName("config")
 
 if err := conf.Get(cfg); err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 
 // This will return a ConfigurationFrozenError — conf is already initialized.
 if err := conf.SetConfigDir("/etc/myapp"); err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 ```
 
