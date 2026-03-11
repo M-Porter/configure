@@ -3,91 +3,55 @@ package configure
 import (
 	"errors"
 	"path/filepath"
-	"strings"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 )
 
-type setupOptions struct {
-	configName    string
-	configType    string
-	configAbsPath string
-	envPrefix     string
+type Configure struct {
+	// The config file name.
+	ConfigName string
+	// The config type. If not supplied, it will be assumed from the ConfigName extension.
+	ConfigType string
+	// The absolute path to the directory the config is stored in.
+	ConfigDir string
+	// Defines a prefix that env variables will use.
+	EnvPrefix string
 	// Default values to apply
-	defaults interface{}
+	Defaults interface{}
 	// If no config exists at the given config file path, should one be written.
-	writeIfNotExists bool
+	WriteIfNotExists bool
 }
 
-type SetupOption func(o *setupOptions)
-
-func WithConfigName(name string) SetupOption {
-	return func(o *setupOptions) {
-		o.configName = name
-	}
-}
-
-func WithConfigDir(dir string) SetupOption {
-	return func(o *setupOptions) {
-		o.configAbsPath = dir
+func New() Configure {
+	return Configure{
+		WriteIfNotExists: false,
 	}
 }
 
-func WithConfigType(name string) SetupOption {
-	return func(o *setupOptions) {
-		o.configType = name
-	}
-}
-
-func WithEnvPrefix(prefix string) SetupOption {
-	return func(o *setupOptions) {
-		o.envPrefix = strings.ToUpper(prefix)
-	}
-}
-
-func WithWriteIfNotExists() SetupOption {
-	return func(o *setupOptions) {
-		o.writeIfNotExists = true
-	}
-}
-
-func WithDefaultConfig(defaults any) SetupOption {
-	return func(o *setupOptions) {
-		o.defaults = defaults
-	}
-}
-
-func Setup(conf any, options ...SetupOption) error {
-	opts := setupOptions{
-		writeIfNotExists: false,
-	}
-	for _, option := range options {
-		option(&opts)
-	}
-
+func (configure *Configure) Get(conf any) error {
 	vpr := viper.New()
 
-	vpr.SetConfigName(opts.configName)
+	vpr.SetConfigName(configure.ConfigName)
 
-	// If config type is not set, attempt to assume it from the configName
-	if opts.configType == "" {
-		ext := filepath.Ext(opts.configName)
+	// If config type is not set, attempt to assume it from the ConfigName
+	if configure.ConfigType == "" {
+		ext := filepath.Ext(configure.ConfigName)
 		if len(ext) > 1 {
 			vpr.SetConfigType(ext[1:])
 		}
 	} else {
-		vpr.SetConfigType(opts.configType)
+		vpr.SetConfigType(configure.ConfigType)
 	}
 
-	vpr.AddConfigPath(opts.configAbsPath)
+	vpr.AddConfigPath(configure.ConfigDir)
 
-	vpr.SetEnvPrefix(opts.envPrefix)
+	vpr.SetEnvPrefix(configure.EnvPrefix)
 	vpr.AutomaticEnv()
 
-	if opts.defaults != nil {
+	if configure.Defaults != nil {
 		var defaults map[string]interface{}
-		if err := mapstructure.Decode(opts.defaults, &defaults); err != nil {
+		if err := mapstructure.Decode(configure.Defaults, &defaults); err != nil {
 			return err
 		}
 		for k, v := range defaults {
@@ -95,10 +59,9 @@ func Setup(conf any, options ...SetupOption) error {
 		}
 	}
 
-	if opts.writeIfNotExists {
+	if configure.WriteIfNotExists {
 		saveErr := vpr.SafeWriteConfig()
-		var configFileAlreadyExistsError viper.ConfigFileAlreadyExistsError
-		if errors.As(saveErr, &configFileAlreadyExistsError) {
+		if _, ok := errors.AsType[viper.ConfigFileAlreadyExistsError](saveErr); ok {
 			// bc the option is "save if not exists", we can ignore this error
 		} else {
 			return saveErr
@@ -119,3 +82,10 @@ func Setup(conf any, options ...SetupOption) error {
 
 	return nil
 }
+
+// Save persists the given conf if the provided Configure refer to a file
+//func Save(conf any, options *Configure) error {
+//	actualOptions := mergeOptions(options)
+//
+//	return nil
+//}

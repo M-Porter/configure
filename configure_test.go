@@ -8,31 +8,29 @@ import (
 )
 
 func TestDefaults(t *testing.T) {
-	type Config struct {
+	type TestingConfig struct {
 		HostName string `mapstructure:"host_name"`
 	}
 
 	expected := "my.test.host"
 
-	conf := &Config{}
+	testingConfig := &TestingConfig{}
 
-	err := configure.Setup(
-		conf,
-		configure.WithDefaultConfig(Config{
-			HostName: expected,
-		}),
-	)
+	conf := configure.New()
+	conf.Defaults = TestingConfig{HostName: expected}
+
+	err := conf.Get(testingConfig)
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
-	if conf.HostName != expected {
-		t.Errorf("expected %s, got %s", expected, conf.HostName)
+	if testingConfig.HostName != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig.HostName)
 	}
 }
 
 func TestFromEnvUsingDefaultPrefix(t *testing.T) {
-	type Config struct {
+	type TestingConfig struct {
 		Secret string `mapstructure:"app_secret"`
 	}
 
@@ -40,28 +38,26 @@ func TestFromEnvUsingDefaultPrefix(t *testing.T) {
 	expected := "987xyz"
 	defer setEnvValue(t, key, expected)()
 
-	conf := &Config{}
+	testingConfig := &TestingConfig{}
 
-	err := configure.Setup(
-		conf,
-		configure.WithDefaultConfig(Config{
-			Secret: "abc123",
-		}),
-	)
+	conf := configure.New()
+	conf.Defaults = TestingConfig{Secret: "abc123"}
+
+	err := conf.Get(testingConfig)
 
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
-	if conf.Secret != expected {
-		t.Errorf("expected %s, got %s", expected, conf.Secret)
+	if testingConfig.Secret != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig.Secret)
 	}
 
 	_ = os.Unsetenv(key)
 }
 
 func TestFromEnvWithPrefix(t *testing.T) {
-	type Config struct {
+	type TestingConfig struct {
 		Secret string `mapstructure:"secret"`
 	}
 
@@ -69,27 +65,25 @@ func TestFromEnvWithPrefix(t *testing.T) {
 	expected := "987xyz"
 	defer setEnvValue(t, key, expected)()
 
-	conf := &Config{}
+	testingConfig := &TestingConfig{}
 
-	err := configure.Setup(
-		conf,
-		configure.WithDefaultConfig(Config{
-			Secret: "abc123",
-		}),
-		configure.WithEnvPrefix("foo"),
-	)
+	conf := configure.New()
+	conf.Defaults = TestingConfig{Secret: "abc123"}
+	conf.EnvPrefix = "foo"
+
+	err := conf.Get(testingConfig)
 
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
-	if conf.Secret != expected {
-		t.Errorf("expected %s, got %s", expected, conf.Secret)
+	if testingConfig.Secret != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig.Secret)
 	}
 }
 
 func TestFromFile(t *testing.T) {
-	type Config struct {
+	type TestingConfig struct {
 		SomeValue string `mapstructure:"some_value"`
 	}
 
@@ -98,27 +92,27 @@ func TestFromFile(t *testing.T) {
 		t.Fatalf("Unable to get working dir: %v", err)
 	}
 
-	conf := &Config{}
+	testingConfig := &TestingConfig{}
 
-	err = configure.Setup(
-		conf,
-		configure.WithConfigName("test_config"),
-		configure.WithConfigType("yaml"),
-		configure.WithConfigDir(dir),
-	)
+	conf := configure.New()
+	conf.ConfigName = "test_config"
+	conf.ConfigType = "yaml"
+	conf.ConfigDir = dir
+
+	err = conf.Get(testingConfig)
 
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
 	expected := "foo foo foo"
-	if conf.SomeValue != expected {
-		t.Errorf("expected %s, got %s", expected, conf.SomeValue)
+	if testingConfig.SomeValue != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig.SomeValue)
 	}
 }
 
 func TestFromFileUsingConfigNameOnly(t *testing.T) {
-	type Config struct {
+	type TestingConfig struct {
 		SomeValue string `mapstructure:"some_value"`
 	}
 
@@ -127,21 +121,21 @@ func TestFromFileUsingConfigNameOnly(t *testing.T) {
 		t.Fatalf("Unable to get working dir: %v", err)
 	}
 
-	conf := &Config{}
+	testingConfig := &TestingConfig{}
 
-	err = configure.Setup(
-		conf,
-		configure.WithConfigName("test_config.yaml"),
-		configure.WithConfigDir(dir),
-	)
+	conf := configure.New()
+	conf.ConfigName = "test_config.yaml"
+	conf.ConfigDir = dir
+
+	err = conf.Get(testingConfig)
 
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
 	expected := "foo foo foo"
-	if conf.SomeValue != expected {
-		t.Errorf("expected %s, got %s", expected, conf.SomeValue)
+	if testingConfig.SomeValue != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig.SomeValue)
 	}
 }
 
