@@ -1,38 +1,39 @@
 package configure_test
 
 import (
+	"fmt"
+	"math/rand"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/m-porter/configure/v3"
 )
 
 func TestDefaults(t *testing.T) {
-	type Config struct {
+	type TestingConfig struct {
 		HostName string `mapstructure:"host_name"`
 	}
 
 	expected := "my.test.host"
 
-	conf := &Config{}
+	testingConfig := &TestingConfig{}
 
-	err := configure.Setup(
-		conf,
-		configure.WithDefaultConfig(Config{
-			HostName: expected,
-		}),
-	)
+	conf := configure.New()
+	conf.SetDefaults(TestingConfig{HostName: expected})
+
+	err := conf.Get(testingConfig)
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
-	if conf.HostName != expected {
-		t.Errorf("expected %s, got %s", expected, conf.HostName)
+	if testingConfig.HostName != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig.HostName)
 	}
 }
 
 func TestFromEnvUsingDefaultPrefix(t *testing.T) {
-	type Config struct {
+	type TestingConfig struct {
 		Secret string `mapstructure:"app_secret"`
 	}
 
@@ -40,28 +41,26 @@ func TestFromEnvUsingDefaultPrefix(t *testing.T) {
 	expected := "987xyz"
 	defer setEnvValue(t, key, expected)()
 
-	conf := &Config{}
+	testingConfig := &TestingConfig{}
 
-	err := configure.Setup(
-		conf,
-		configure.WithDefaultConfig(Config{
-			Secret: "abc123",
-		}),
-	)
+	conf := configure.New()
+	conf.SetDefaults(TestingConfig{Secret: "abc123"})
+
+	err := conf.Get(testingConfig)
 
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
-	if conf.Secret != expected {
-		t.Errorf("expected %s, got %s", expected, conf.Secret)
+	if testingConfig.Secret != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig.Secret)
 	}
 
 	_ = os.Unsetenv(key)
 }
 
 func TestFromEnvWithPrefix(t *testing.T) {
-	type Config struct {
+	type TestingConfig struct {
 		Secret string `mapstructure:"secret"`
 	}
 
@@ -69,27 +68,25 @@ func TestFromEnvWithPrefix(t *testing.T) {
 	expected := "987xyz"
 	defer setEnvValue(t, key, expected)()
 
-	conf := &Config{}
+	testingConfig := &TestingConfig{}
 
-	err := configure.Setup(
-		conf,
-		configure.WithDefaultConfig(Config{
-			Secret: "abc123",
-		}),
-		configure.WithEnvPrefix("foo"),
-	)
+	conf := configure.New()
+	conf.SetDefaults(TestingConfig{Secret: "abc123"})
+	conf.SetEnvPrefix("foo")
+
+	err := conf.Get(testingConfig)
 
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
-	if conf.Secret != expected {
-		t.Errorf("expected %s, got %s", expected, conf.Secret)
+	if testingConfig.Secret != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig.Secret)
 	}
 }
 
 func TestFromFile(t *testing.T) {
-	type Config struct {
+	type TestingConfig struct {
 		SomeValue string `mapstructure:"some_value"`
 	}
 
@@ -98,50 +95,96 @@ func TestFromFile(t *testing.T) {
 		t.Fatalf("Unable to get working dir: %v", err)
 	}
 
-	conf := &Config{}
+	testingConfig := &TestingConfig{}
 
-	err = configure.Setup(
-		conf,
-		configure.WithConfigName("test_config"),
-		configure.WithConfigType("yaml"),
-		configure.WithConfigDir(dir),
-	)
+	conf := configure.New()
+	conf.SetConfigName("test_config")
+	conf.SetConfigType("yaml")
+	conf.SetConfigDir(dir)
 
+	err = conf.Get(testingConfig)
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
 	expected := "foo foo foo"
-	if conf.SomeValue != expected {
-		t.Errorf("expected %s, got %s", expected, conf.SomeValue)
+	if testingConfig.SomeValue != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig.SomeValue)
 	}
 }
 
-func TestFromFileUsingConfigNameOnly(t *testing.T) {
-	type Config struct {
+func TestWriteIfNotExists(t *testing.T) {
+	type TestingConfig struct {
 		SomeValue string `mapstructure:"some_value"`
 	}
 
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Unable to get working dir: %v", err)
-	}
+	testingConfig := &TestingConfig{}
 
-	conf := &Config{}
+	tempDir := os.TempDir()
+	tempFile := fmt.Sprintf("configure_tests_%08x", rand.Uint32())
+	fullTempFilePath := path.Join(tempDir, tempFile+".yaml")
+	defer os.Remove(fullTempFilePath)
 
-	err = configure.Setup(
-		conf,
-		configure.WithConfigName("test_config.yaml"),
-		configure.WithConfigDir(dir),
-	)
+	conf := configure.New()
+	conf.SetConfigName(tempFile)
+	conf.SetConfigType("yaml")
+	conf.SetConfigDir(tempDir)
+	conf.SetDefaults(TestingConfig{SomeValue: "abc123"})
+	conf.SetWriteIfNotExists(true)
 
-	if err != nil {
+	if err := conf.Get(testingConfig); err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
 
-	expected := "foo foo foo"
-	if conf.SomeValue != expected {
-		t.Errorf("expected %s, got %s", expected, conf.SomeValue)
+	if _, err := os.Stat(fullTempFilePath); os.IsNotExist(err) {
+		t.Errorf("file %s not created", fullTempFilePath)
+	}
+}
+
+func TestCanSaveAConfig(t *testing.T) {
+	type TestingConfig struct {
+		SomeValue string `mapstructure:"some_value"`
+	}
+
+	testingConfig := &TestingConfig{}
+
+	tempDir := os.TempDir()
+	tempFile := fmt.Sprintf("configure_tests_%08x", rand.Uint32())
+	fullTempFilePath := path.Join(tempDir, tempFile+".yaml")
+	defer os.Remove(fullTempFilePath)
+
+	conf := configure.New()
+	conf.SetConfigName(tempFile)
+	conf.SetConfigType("yaml")
+	conf.SetConfigDir(tempDir)
+	conf.SetDefaults(TestingConfig{SomeValue: fmt.Sprintf("%08x", rand.Uint32())})
+	conf.SetWriteIfNotExists(true)
+
+	if err := conf.Get(testingConfig); err != nil {
+		t.Fatalf("error setting up config: %v", err)
+	}
+
+	expected := fmt.Sprintf("%08x", rand.Uint32())
+	testingConfig.SomeValue = expected
+
+	if err := conf.Save(testingConfig); err != nil {
+		t.Fatalf("error saving config: %v", err)
+	}
+
+	// next try to read in the file again with a new instance. it should now be the expected value
+	testingConfig2 := &TestingConfig{}
+
+	conf2 := configure.New()
+	conf2.SetConfigName(tempFile)
+	conf2.SetConfigType("yaml")
+	conf2.SetConfigDir(tempDir)
+
+	if err := conf2.Get(testingConfig2); err != nil {
+		t.Fatalf("error setting up config: %v", err)
+	}
+
+	if testingConfig2.SomeValue != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig2.SomeValue)
 	}
 }
 
