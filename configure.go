@@ -142,6 +142,10 @@ func (c *Configure) Save(source any) error {
 }
 
 func (c *Configure) setupViper() {
+	if c.viper != nil {
+		return
+	}
+
 	vpr := viper.New()
 
 	vpr.SetConfigName(c.configName)

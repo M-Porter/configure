@@ -1,6 +1,7 @@
 package configure_test
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -185,6 +186,41 @@ func TestCanSaveAConfig(t *testing.T) {
 
 	if testingConfig2.SomeValue != expected {
 		t.Errorf("expected %s, got %s", expected, testingConfig2.SomeValue)
+	}
+}
+
+func TestFrozen(t *testing.T) {
+	type TestingConfig struct {
+		SomeValue string `mapstructure:"some_value"`
+	}
+
+	conf := configure.New()
+
+	if err := conf.Get(&TestingConfig{}); err != nil {
+		t.Fatalf("error initializing config: %v", err)
+	}
+
+	setters := []struct {
+		name string
+		fn   func() error
+	}{
+		{"SetConfigName", func() error { return conf.SetConfigName("config") }},
+		{"SetConfigType", func() error { return conf.SetConfigType("yaml") }},
+		{"SetConfigDir", func() error { return conf.SetConfigDir("/etc/myapp") }},
+		{"SetEnvPrefix", func() error { return conf.SetEnvPrefix("myapp") }},
+		{"SetDefaults", func() error { return conf.SetDefaults(TestingConfig{}) }},
+		{"SetWriteIfNotExists", func() error { return conf.SetWriteIfNotExists(true) }},
+	}
+
+	for _, s := range setters {
+		err := s.fn()
+		if err == nil {
+			t.Errorf("%s: expected ConfigurationFrozenError, got nil", s.name)
+			continue
+		}
+		if _, ok := errors.AsType[*configure.ConfigurationFrozenError](err); !ok {
+			t.Errorf("%s: expected ConfigurationFrozenError, got %T: %v", s.name, err, err)
+		}
 	}
 }
 
