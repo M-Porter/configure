@@ -103,7 +103,6 @@ func TestFromFile(t *testing.T) {
 	conf.SetConfigDir(dir)
 
 	err = conf.Get(testingConfig)
-
 	if err != nil {
 		t.Fatalf("error setting up config: %v", err)
 	}
@@ -139,6 +138,53 @@ func TestWriteIfNotExists(t *testing.T) {
 
 	if _, err := os.Stat(fullTempFilePath); os.IsNotExist(err) {
 		t.Errorf("file %s not created", fullTempFilePath)
+	}
+}
+
+func TestCanSaveAConfig(t *testing.T) {
+	type TestingConfig struct {
+		SomeValue string `mapstructure:"some_value"`
+	}
+
+	testingConfig := &TestingConfig{}
+
+	tempDir := os.TempDir()
+	tempFile := fmt.Sprintf("configure_tests_%08x", rand.Uint32())
+	fullTempFilePath := path.Join(tempDir, tempFile+".yaml")
+	defer os.Remove(fullTempFilePath)
+
+	conf := configure.New()
+	conf.SetConfigName(tempFile)
+	conf.SetConfigType("yaml")
+	conf.SetConfigDir(tempDir)
+	conf.SetDefaults(TestingConfig{SomeValue: fmt.Sprintf("%08x", rand.Uint32())})
+	conf.SetWriteIfNotExists(true)
+
+	if err := conf.Get(testingConfig); err != nil {
+		t.Fatalf("error setting up config: %v", err)
+	}
+
+	expected := fmt.Sprintf("%08x", rand.Uint32())
+	testingConfig.SomeValue = expected
+
+	if err := conf.Save(testingConfig); err != nil {
+		t.Fatalf("error saving config: %v", err)
+	}
+
+	// next try to read in the file again with a new instance. it should now be the expected value
+	testingConfig2 := &TestingConfig{}
+
+	conf2 := configure.New()
+	conf2.SetConfigName(tempFile)
+	conf2.SetConfigType("yaml")
+	conf2.SetConfigDir(tempDir)
+
+	if err := conf2.Get(testingConfig2); err != nil {
+		t.Fatalf("error setting up config: %v", err)
+	}
+
+	if testingConfig2.SomeValue != expected {
+		t.Errorf("expected %s, got %s", expected, testingConfig2.SomeValue)
 	}
 }
 
