@@ -117,7 +117,7 @@ func (c *Configure) Get(dest any) error {
 		return readError
 	}
 
-	unmarshalErr := c.viper.Unmarshal(&dest)
+	unmarshalErr := c.viper.Unmarshal(dest)
 	if unmarshalErr != nil {
 		return unmarshalErr
 	}
